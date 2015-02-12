@@ -1,0 +1,2 @@
+# libec
+Enjoy Clicker SDK
