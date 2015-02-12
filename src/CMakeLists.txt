@@ -1,0 +1,4 @@
+add_subdirectory(3rdparty)
+add_subdirectory(gsp)
+add_subdirectory(ec)
+add_subdirectory(ec-wrap)
