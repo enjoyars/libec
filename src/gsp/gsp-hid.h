@@ -3,18 +3,12 @@
 
 #include "gsp.h"
 
-#include <stdio.h>
 #include <string.h>
 
 #include "../3rdparty/hidapi/hidapi.h"
 
-
-static void gsp_thread(void *arg);
-
-class GspHID : public AbstractGsp
+class GspHID : public Gsp
 {
-    friend void gsp_thread(void *arg);
-
 public:
     explicit GspHID();
     virtual ~GspHID();
@@ -23,24 +17,16 @@ public:
     virtual bool close();
     virtual bool isOpened();
 
-    virtual int readData(void *data, int length);
-    virtual int writeData(const void *data, int length);
-
+    virtual int read(unsigned char *data, int length, int timeout);
+    virtual int write(const unsigned char *data, int length, int timeout);
     virtual void flush();
-    virtual void setTimeout(int ms);
 
 private:
-    int readDataNoWaiting(void *data, int length);
     int _read(void *data, int length);
     int _write(void *data, int length);
 
 private:
     hid_device *_device;
-    int _timeout;
-
-    tthread::thread *_thread;
-    tthread::mutex _mutexDevice;
-    tthread::mutex _mutexFinished;
 };
 
 #endif

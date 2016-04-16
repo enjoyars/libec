@@ -1,11 +1,12 @@
 #include "ec.h"
 
-#include "gsp.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <deque>
+
+#include "gsp.h"
+#include "../3rdparty/tthread/tinythread.h"
 
 using namespace std;
 
@@ -24,15 +25,16 @@ static const char *_teacherMessagesString[12] = {
     "f2"
 };
 
-class Device : public GspRecvEvent
+class Device
 {
 public:
-	Device()
+    Device(ec_Port _port, int _deviceType)
 	{
-		port = NULL;
-		deviceType = EC_DT_Unknown;
+        port = _port;
+        deviceType = _deviceType;
 		deviceMode = EC_DM_Static;
 		quizType = EC_QT_Unknown;
+        newQuizFlag = 0;
 		isInDynamicRegtration = false;
 	}
 
@@ -46,14 +48,14 @@ public:
     int deviceType;
     int deviceMode;
     int quizType;
+    int newQuizFlag; // rf219 only
 
 public:
-    tthread::mutex mutexEvent;
     std::deque<ec_Event> events;
     bool isInDynamicRegtration;
 
 protected:
-    virtual void dataRecvEvent(AbstractGsp *gsp, unsigned char *data, int length)
+    virtual void dataRecvEvent(Gsp *gsp, unsigned char *data, int length)
     {
         printf("package data: ");
         for (int i = 0; i < length; ++i)
@@ -183,9 +185,7 @@ protected:
             return;
         }
         memcpy(event.data, str.c_str(), str.length() + 1);
-        mutexEvent.lock();
         events.push_back(event);
-        mutexEvent.unlock();
     }
 
     void _processPackage218(unsigned char *data, int length)
@@ -289,9 +289,7 @@ protected:
         }
 
         memcpy(event.data, str.c_str(), str.length() + 1);
-        mutexEvent.lock();
         events.push_back(event);
-        mutexEvent.unlock();
     }
 
     void _processPackage218DynamicRegstration(unsigned char *data, int length)
@@ -306,9 +304,7 @@ protected:
         str = buf;
 
         memcpy(event.data, str.c_str(), str.length() + 1);
-        mutexEvent.lock();
         events.push_back(event);
-        mutexEvent.unlock();
     }
 };
 
@@ -317,99 +313,55 @@ void API_FUNC ec_sleep(int ms)
 	tthread::this_thread::sleep_for(tthread::chrono::milliseconds(ms));
 }
 
-ec_Port API_FUNC ec_openPort(const char *address, int speed)
+ec_Port API_FUNC ec_openPort(const char *path, int baud)
 {
-    Gsp *sp = new Gsp();
-    if (sp->open(address, speed))
-    {
-    	ec_sleep(10);
-        return sp;
-    }
-    delete(sp);
-    return NULL;
+    return createGsp(path, baud);
 }
 
 void API_FUNC ec_closePort(ec_Port port)
 {
-    Gsp *sp = (Gsp*)(port);
-    delete sp;
-    return;
+    destroyGsp((Gsp*)port);
 }
 
-void API_FUNC ec_enableEvent(ec_Port *port)
+int API_FUNC ec_readPort(ec_Port port, unsigned char *data, int length, int timeout)
 {
-    Gsp *sp = (Gsp*)(port);
-    sp->enableRecvEvent();
-    return;
+    Gsp *gsp = (Gsp*)(port);
+    return gsp->read(data, length, timeout);
 }
 
-void API_FUNC ec_disableEvent(ec_Port *port)
+int API_FUNC ec_writePort(ec_Port port, unsigned char *data, int length, int timeout)
 {
-    Gsp *sp = (Gsp*)(port);
-    sp->disableRecvEvent();
-    return;
-}
-
-int API_FUNC ec_writePort(ec_Port port, int *data, int length, int timeout)
-{
-    Gsp *sp = (Gsp*)(port);
-    sp->setTimeout(timeout);
-    unsigned char *buf = (unsigned char *)malloc(length);
     for (int i = 0; i < length; ++i)
     {
-    	buf[i] = (unsigned char)(data[i] & 0xFF);
+        printf("%0X ", data[i]);
     }
-    printf("write data: ");
-    for (int i = 0; i < length; ++i)
-    {
-        printf("%X ", buf[i]);
-    }
-    printf("\n");
-    int r = sp->writeData(buf, length);
-    free(buf);
-    return r;
+    Gsp *gsp = (Gsp*)(port);
+    return gsp->write(data, length, timeout);
 }
 
-int API_FUNC ec_readPort(ec_Port port, int *data, int length, int timeout)
+
+EC_API void API_FUNC ec_flushPort(ec_Port port)
 {
-    Gsp *sp = (Gsp*)(port);
-    sp->setTimeout(timeout);
-    unsigned char *buf = (unsigned char *)malloc(length);
-    int r = sp->readData(buf, length);
-    for (int i = 0; i < length; ++i)
-    {
-    	data[i] = buf[i];
-    }
-    free(buf);
-    return r;
+    Gsp *gsp = (Gsp*)(port);
+    gsp->flush();
 }
 
 EC_API ec_Device API_FUNC ec_createDevice(ec_Port port, int deviceType)
 {
-    Gsp *sp = (Gsp*)(port);
-    Device *dev = new Device();
-    sp->setRecvEvent(dev);
-    dev->port = port;
-    dev->deviceType = deviceType;
-    dev->quizType = EC_QT_Unknown;
-    ec_enableEvent(dev);
-    return dev;
+    return new Device(port, deviceType);
 }
 
 EC_API void API_FUNC ec_destroyDevice(ec_Device device)
 {
     Device *dev = (Device*)(device);
-    Gsp *sp = (Gsp*)(dev->port);
-    ec_disableEvent(device);
-    sp->setRecvEvent(NULL);
     delete dev;
     return;
 }
 
-int API_FUNC ec_cmd(ec_Device device, int *cmd, int length, int timeout)
+static bool ec_cmd(ec_Device device, const unsigned char *cmd, int length, int timeout)
 {
 	Device *dev = (Device*)(device);
-    int data[1024];
+    unsigned char data[1024];
     int v = 0;
     switch (dev->deviceType)
     {
@@ -447,7 +399,7 @@ int API_FUNC ec_cmd(ec_Device device, int *cmd, int length, int timeout)
 void API_FUNC ec_setDeviceMode(ec_Device device, int deviceMode)
 {
 	Device *dev = (Device*)(device);
-	int cmd[1024];
+    unsigned char cmd[1024];
 	switch (dev->deviceType)
 	{
 	case EC_DT_RF218:
@@ -474,7 +426,7 @@ void API_FUNC ec_setDeviceMode(ec_Device device, int deviceMode)
 int API_FUNC ec_openDevice(ec_Device device, int minId, int maxId)
 {
 	Device *dev = (Device*)(device);
-    int cmd[1024];
+    unsigned char cmd[1024];
     switch (dev->deviceType)
     {
     case EC_DT_RF215:
@@ -511,7 +463,7 @@ void API_FUNC ec_closeDevice(ec_Device device)
 {
 	Device *dev = (Device*)(device);
     ec_stopQuiz(device);
-    int cmd[1024];
+    unsigned char cmd[1024];
     switch (dev->deviceType)
     {
     case EC_DT_RF219:
@@ -521,7 +473,6 @@ void API_FUNC ec_closeDevice(ec_Device device)
         ec_cmd(device, cmd, 1, 100);
         break;
     }
-    ec_disableEvent(device);
     return;
 }
 
@@ -529,39 +480,19 @@ int API_FUNC ec_getEvent(ec_Device device, ec_Event *event)
 {
     Device *dev = (Device*)(device);
     int r = 0;
-    dev->mutexEvent.lock();
     if (dev->events.empty() == false)
     {
         memcpy(event, &(dev->events.front()), sizeof(ec_Event));
         dev->events.pop_front();
         r = 1;
     }
-    dev->mutexEvent.unlock();
     return r;
 }
 
-void API_FUNC ec_enableEvent(ec_Device device)
+int API_FUNC ec_startQuiz(ec_Device device, int quizType, int param1, int param2, int isNewQuiz)
 {
     Device *dev = (Device*)(device);
-    Gsp *sp = (Gsp*)(dev->port);
-    sp->enableRecvEvent();
-    return;
-}
-
-void API_FUNC ec_disableEvent(ec_Device device)
-{
-    Device *dev = (Device*)(device);
-    Gsp *sp = (Gsp*)(dev->port);
-    sp->disableRecvEvent();
-    return;
-}
-
-int API_FUNC ec_startQuiz(ec_Device device, int quizType, int isNew, int p1, int p2)
-{
-    static int flag = 0; // for rf219
-
-    Device *dev = (Device*)(device);
-    int cmd[1024];
+    unsigned char cmd[1024];
     switch (dev->deviceType)
     {
     case EC_DT_RF215:
@@ -599,11 +530,11 @@ int API_FUNC ec_startQuiz(ec_Device device, int quizType, int isNew, int p1, int
         case EC_QT_Rush:
         case EC_QT_Single:
             cmd[1] = 0;
-            cmd[2] = min(1, max(10, p1));
+            cmd[2] = min(1, max(10, param1));
             break;
         case EC_QT_Multiple:
-            cmd[1] = min(1, max(10, p2 - 1));
-            cmd[2] = min(1, max(4, p1));
+            cmd[1] = min(1, max(10, param2 - 1));
+            cmd[2] = min(1, max(4, param1));
             break;
         case EC_QT_Number:
             cmd[1] = 8;
@@ -611,31 +542,34 @@ int API_FUNC ec_startQuiz(ec_Device device, int quizType, int isNew, int p1, int
             break;
         case EC_QT_Text:
             cmd[1] = 7;
-            cmd[2] = min(1, max(120, p1));
+            cmd[2] = min(1, max(120, param1));
             break;
         case EC_QT_Classify:
             cmd[1] = 6;
-            cmd[2] = min(1, max(10, p1)) | (min(1, max(6, p2)) << 4);
+            cmd[2] = min(1, max(10, param1)) | (min(1, max(6, param2)) << 4);
             break;
         case EC_QT_Sort:
             cmd[1] = 5;
-            cmd[2] = min(1, max(9, p1));
+            cmd[2] = min(1, max(9, param1));
             break;
         case EC_QT_JudgeOrVote:
-            cmd[1] = min(10, max(15, p2));
-            cmd[2] = min(1, max(3, p1));
+            cmd[1] = min(10, max(15, param2));
+            cmd[2] = min(1, max(3, param1));
             break;
         case EC_QT_Homework:
-            cmd[1] = 0x10 + min(1, max(7, p2));
-            cmd[2] = min(1, max(100, p1));
+            cmd[1] = 0x10 + min(1, max(7, param2));
+            cmd[2] = min(1, max(100, param1));
             break;
         }
-        if (isNew)
+        if (isNewQuiz)
         {
-            flag = ~flag;
-            flag &= 0x60;
+            dev->newQuizFlag = 0;
         }
-        cmd[2] |= flag;
+        else
+        {
+            dev->newQuizFlag = (dev->newQuizFlag + 1) % 4;
+        }
+        cmd[2] |= (dev->newQuizFlag << 5);
         ec_cmd(device, cmd, 3, 100);
         break;
     default:
@@ -648,7 +582,7 @@ int API_FUNC ec_startQuiz(ec_Device device, int quizType, int isNew, int p1, int
 void API_FUNC ec_stopQuiz(ec_Device device)
 {
     Device *dev = (Device*)(device);
-    int cmd[1024];
+    unsigned char cmd[1024];
     switch (dev->deviceType)
     {
     case EC_DT_RF217:
@@ -670,7 +604,7 @@ void API_FUNC ec_stopQuiz(ec_Device device)
 void API_FUNC ec_setKeypadId(ec_Device device, int id)
 {
     Device *dev = (Device*)(device);
-    int cmd[1024];
+    unsigned char cmd[1024];
     switch (dev->deviceType)
     {
     case EC_DT_RF217:
@@ -717,7 +651,7 @@ void API_FUNC ec_setKeypadId(ec_Device device, int id)
 void API_FUNC ec_setKeypadSn(ec_Device device, int sn)
 {
     Device *dev = (Device*)(device);
-    int cmd[1024];
+    unsigned char cmd[1024];
     switch (dev->deviceType)
     {
     case EC_DT_RF218:
@@ -741,7 +675,7 @@ void API_FUNC ec_setKeypadSn(ec_Device device, int sn)
 void API_FUNC ec_startDynamicRegistration(ec_Device device, int address)
 {
     Device *dev = (Device*)(device);
-    int cmd[1024];
+    unsigned char cmd[1024];
     switch (dev->deviceType)
     {
     case EC_DT_RF218:
@@ -774,7 +708,7 @@ void API_FUNC ec_startDynamicRegistration(ec_Device device, int address)
 void API_FUNC ec_continueDynamicRegistration(ec_Device device)
 {
     Device *dev = (Device*)(device);
-    int cmd[1024];
+    unsigned char cmd[1024];
     switch (dev->deviceType)
     {
     case EC_DT_RF218:
@@ -794,7 +728,7 @@ void API_FUNC ec_continueDynamicRegistration(ec_Device device)
 void API_FUNC ec_stopDynamicRegistration(ec_Device device)
 {
     Device *dev = (Device*)(device);
-    int cmd[1024];
+    unsigned char cmd[1024];
     switch (dev->deviceType)
     {
     case EC_DT_RF218:
@@ -819,7 +753,7 @@ int API_FUNC ec_checkDeviceSn(ec_Device device, const char *sn)
     }
 
     Device *dev = (Device*)(device);
-    int cmd[1024];
+    unsigned char cmd[1024];
 
     cmd[0] = 0x55;
     cmd[1] = 0x80;

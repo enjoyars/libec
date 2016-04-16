@@ -1,6 +1,6 @@
 /*!
   * \file ec.h
-  * SDK of Enjoy Clicker device.
+  * SDK of Enjoy Clicker.
   */
 
 #ifndef __ENJOY_CLICKER_H__
@@ -100,7 +100,7 @@ extern "C" {
  */
 typedef struct _ec_Event
 {
-    char data[256];
+    char data[1024];
     int eventType;
     int quizType;
     int keypadId;
@@ -120,25 +120,23 @@ typedef void* ec_Device;
 
 EC_API void API_FUNC ec_sleep(int ms);
 
-EC_API ec_Port API_FUNC ec_openPort(const char *address, int speed);
+EC_API ec_Port API_FUNC ec_openPort(const char *path, int baud);
 EC_API void API_FUNC ec_closePort(ec_Port port);
-EC_API int API_FUNC ec_writePort(ec_Port port, int *data, int length, int timeout);
-EC_API int API_FUNC ec_readPort(ec_Port port, int *data, int length, int timeout);
+EC_API int API_FUNC ec_readPort(ec_Port port, unsigned char *data, int length, int timeout);
+EC_API int API_FUNC ec_writePort(ec_Port port, unsigned char *data, int length, int timeout);
+EC_API void API_FUNC ec_flushPort(ec_Port port);
 
 EC_API ec_Device API_FUNC ec_createDevice(ec_Port port, int deviceType);
 EC_API void API_FUNC ec_destroyDevice(ec_Device device);
 
-EC_API int API_FUNC ec_cmd(ec_Device device, int *cmd, int length, int timeout);
-
 EC_API void API_FUNC ec_setDeviceMode(ec_Device device, int deviceMode);
+
 EC_API int API_FUNC ec_openDevice(ec_Device device, int minId, int maxId);
 EC_API void API_FUNC ec_closeDevice(ec_Device device);
 
 EC_API int API_FUNC ec_getEvent(ec_Device device, ec_Event *event);
-EC_API void API_FUNC ec_enableEvent(ec_Device device);
-EC_API void API_FUNC ec_disableEvent(ec_Device device);
 
-EC_API int API_FUNC ec_startQuiz(ec_Device device, int quizType, int isNew, int p1, int p2);
+EC_API int API_FUNC ec_startQuiz(ec_Device device, int quizType, int param1 = -1, int param2 = -1, int isNewQuiz = 1);
 EC_API void API_FUNC ec_stopQuiz(ec_Device device);
 
 EC_API void API_FUNC ec_setKeypadId(ec_Device device, int id);

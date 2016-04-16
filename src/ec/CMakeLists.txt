@@ -9,8 +9,8 @@ install(FILES ec.h DESTINATION ec)
 
 
 
-add_executable(test-ec test-ec.cpp)
-target_link_libraries(test-ec ec)
+#add_executable(test-ec test-ec.cpp)
+#target_link_libraries(test-ec ec)
 
-install(TARGETS test-ec DESTINATION ec)
-install(FILES test-ec.cpp DESTINATION ec)
+#install(TARGETS test-ec DESTINATION ec)
+#install(FILES test-ec.cpp DESTINATION ec)

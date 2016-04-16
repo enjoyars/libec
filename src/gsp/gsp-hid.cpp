@@ -1,7 +1,10 @@
 #include "gsp-hid.h"
 
+#include <string>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "../3rdparty/tthread/tinythread.h"
 
 std::wstring c2w(const char *pc)
 {
@@ -27,58 +30,9 @@ std::wstring c2w(const char *pc)
     return val;
 }
 
-/*!
-  * \brief Thread for esp implementation.
-  */
-static void gsp_thread(void *arg)
-{
-    GspHID *gsp = (GspHID*)arg;
-
-    unsigned char buf[1000];
-    while (1)
-    {
-        tthread::this_thread::sleep_for(tthread::chrono::milliseconds(1));
-        if (gsp->_mutexFinished.try_lock())
-        {
-            gsp->_mutexFinished.unlock();
-            break;
-        }
-
-        //printf("Thread \n");
-        if (gsp->_mutexEvent.try_lock())
-        {
-            //printf("Thread lock\n");
-            //printf("1. Thread Read\n");
-            while (1)
-            {
-                int r = gsp->readDataNoWaiting(buf, sizeof(buf));
-    //            for (int i = 0; i < r; ++i)
-    //            {
-    //                printf("data %d: %X\n", i, buf[i]);
-    //            }
-                if (r > 0)
-                {
-                    gsp->_dataRecvEvent(buf, r);
-                }
-                else
-                {
-                    break;
-                }
-            }
-            //printf("2. Thread Read\n");
-            gsp->_mutexEvent.unlock();
-        }
-    }
-
-    //printf("Thread Return\n");
-    return;
-}
-
 GspHID::GspHID()
 {
     _device = NULL;
-    _thread = NULL;
-    _timeout = 10;
     hid_init();
 }
 
@@ -92,33 +46,19 @@ bool GspHID::open(const std::string path, int baud)
 {
     close();
 
-//    struct hid_device_info *devs, *cur_dev;
-//    devs = hid_enumerate(0x10c4, 0x1819);
-//    cur_dev = devs;
-//    while (cur_dev)
-//    {
-//        printf("Device Found\n  type: %04hx %04hx\n  path: %s\n  serial_number: %ls",
-//            cur_dev->vendor_id, cur_dev->product_id, cur_dev->path, cur_dev->serial_number);
-//        printf("\n");
-//        printf("  Manufacturer: %ls\n", cur_dev->manufacturer_string);
-//        printf("  Product:      %ls\n", cur_dev->product_string);
-//        printf("\n");
-//        cur_dev = cur_dev->next;
-//    }
-//    hid_free_enumeration(devs);
-
-    std::string str(path.c_str());
-    if (path.empty())
+    if (path.size() > 0)
     {
-        _device = hid_open(0x10c4, 0x1819, NULL);
+        _device = hid_open(0x10c4, 0x1819, (wchar_t*)((c2w(path.c_str())).c_str()));
     }
     else
     {
-        _device = hid_open(0x10c4, 0x1819, (wchar_t*)((c2w(str.c_str())).c_str()));
+        _device = hid_open(0x10c4, 0x1819, NULL);
     }
+
     if (_device == NULL)
     {
-        goto failsafe;
+        close();
+        return false;
     }
 
     hid_set_nonblocking(_device, 1);
@@ -142,37 +82,16 @@ bool GspHID::open(const std::string path, int baud)
     buf[0] = 0x41;
     buf[1] = 0x01;
     hid_send_feature_report(_device, buf, 2); // Enable UART
-
-    _mutexFinished.lock();
-    _thread = new tthread::thread(gsp_thread, this);
-    if (_thread == NULL)
-    {
-        goto failsafe;
-    }
-
     return true;
-failsafe:
-    close();
-    return false;
 }
 
 bool GspHID::close()
 {
-    if (_thread != NULL)
-    {
-        _mutexFinished.try_lock();
-        _mutexFinished.unlock();
-        _thread->join();
-        delete _thread;
-        _thread = NULL;
-    }
-
     if (_device != NULL)
     {
         hid_close(_device);
         _device = NULL;
     }
-
     return true;
 }
 
@@ -181,7 +100,7 @@ bool GspHID::isOpened()
     return (_device != NULL);
 }
 
-int GspHID::readData(void *data, int length)
+int GspHID::read(unsigned char *data, int length, int timeout)
 {
     int s = 0;
     int t = -1;
@@ -199,7 +118,7 @@ int GspHID::readData(void *data, int length)
         else
         {
             ++t;
-            if (t >= _timeout)
+            if (t >= timeout)
             {
                 break;
             }
@@ -210,7 +129,7 @@ int GspHID::readData(void *data, int length)
     return s;
 }
 
-int GspHID::writeData(const void *data, int length)
+int GspHID::write(const unsigned char *data, int length, int timeout)
 {
     int s = 0;
     int t = -1;
@@ -228,7 +147,7 @@ int GspHID::writeData(const void *data, int length)
         else
         {
             ++t;
-            if (t >= _timeout)
+            if (t >= timeout)
             {
                 break;
             }
@@ -247,36 +166,6 @@ void GspHID::flush()
     return;
 }
 
-void GspHID::setTimeout(int ms)
-{
-    _timeout = ms;
-}
-
-int GspHID::readDataNoWaiting(void *data, int length)
-{
-    int s = 0;
-    while (1)
-    {
-        int r = _read((char*)data + s, length - s);
-
-        if (r > 0)
-        {
-            s += r;
-        }
-        else
-        {
-            break;
-        }
-
-        if (s >= length)
-        {
-            break;
-        }
-        //printf("readData: %d\n", r);
-    }
-    return s;
-}
-
 int GspHID::_read(void *data, int length)
 {
     if (length > 63)
@@ -289,10 +178,8 @@ int GspHID::_read(void *data, int length)
     memset(buf, 0, 64);
     buf[0] = length;
 
-    _mutexDevice.lock();
     // buffer size must be 64. buf[0] changed after reading.
     int r = hid_read(_device, buf, 64);
-    _mutexDevice.unlock();
 
     if(r <= 1)
     {
@@ -325,10 +212,8 @@ int GspHID::_write(void *data, int length)
     buf[0] = length;
     memcpy(buf + 1, data, length);
 
-    _mutexDevice.lock();
     // buffer size must be 64. buf[0] changed after writing.
     int r = hid_write(_device, buf, 64);
-    _mutexDevice.unlock();
 
     if (r >= length)
     {
