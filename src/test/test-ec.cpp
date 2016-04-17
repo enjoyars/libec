@@ -87,7 +87,7 @@ int main(int argc, char **argv)
 
 //    return 0;
 
-//    if (ec_openDevice(device, 1, 40) == 0)
+//    if (ec_connectDevice(device, 1, 40) == 0)
 //    {
 //        printf("ec_openDevice Error. \n");
 //        return 0;
@@ -135,7 +135,7 @@ int main(int argc, char **argv)
 
     ec_sleep(5000);
     ec_stopQuiz(device);
-    ec_closeDevice(device);
+    ec_disconnectDevice(device);
 
     ec_destroyDevice(device);
     ec_closePort(port);

@@ -650,7 +650,7 @@ void API_FUNC ec_setDeviceMode(ec_Device device, int deviceMode)
 	return;
 }
 
-int API_FUNC ec_openDevice(ec_Device device, int minId, int maxId)
+int API_FUNC ec_connectDevice(ec_Device device, int minId, int maxId)
 {
 	Device *dev = (Device*)(device);
     unsigned char cmd[1024];
@@ -686,7 +686,7 @@ int API_FUNC ec_openDevice(ec_Device device, int minId, int maxId)
     return 1;
 }
 
-void API_FUNC ec_closeDevice(ec_Device device)
+void API_FUNC ec_disconnectDevice(ec_Device device)
 {
 	Device *dev = (Device*)(device);
     ec_stopQuiz(device);
