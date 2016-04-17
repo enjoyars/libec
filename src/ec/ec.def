@@ -1,0 +1,23 @@
+LIBRARY "ec"
+EXPORTS
+
+ec_sleep
+ec_openPort
+ec_closePort
+ec_readPort
+ec_writePort
+ec_flushPort
+ec_createDevice
+ec_destroyDevice
+ec_setDeviceMode
+ec_connectDevice
+ec_disconnectDevice
+ec_getEvent
+ec_startQuiz
+ec_stopQuiz
+ec_setKeypadId
+ec_setKeypadSn
+ec_startDynamicRegistration
+ec_continueDynamicRegistration
+ec_stopDynamicRegistration
+ec_checkDeviceSn

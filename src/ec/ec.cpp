@@ -884,6 +884,20 @@ void API_FUNC ec_setKeypadId(ec_Device device, int id)
 
     	}
         break;
+    case EC_DT_RF219:
+        if (id == 0)
+        {
+            cmd[0] = 0x24;
+            ec_cmd(device, cmd, 1);
+        }
+        else if (id > 0)
+        {
+            cmd[0] = 0x17;
+            cmd[1] = id % 8;
+            cmd[2] = id / 8;
+            ec_cmd(device, cmd, 3);
+        }
+        break;
     default:
         return;
     }

@@ -28,7 +28,7 @@ if(BUILD_WARP_CSHAPR)
     swig_add_module(ec-csharp csharp ec.i ../ec/ec.cpp)
     swig_link_libraries(ec-csharp gsp)
 
-    set_property(TARGET ec-csharp PROPERTY OUTPUT_NAME "ec")
+#    set_property(TARGET ec-csharp PROPERTY OUTPUT_NAME "ec")
     install(TARGETS ec-csharp DESTINATION ec-csharp)
     install(FILES
         ../test/test-ec-csharp.cs
