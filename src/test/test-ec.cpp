@@ -79,9 +79,9 @@ int main(int argc, char **argv)
 //    ec_sleep(500);
     int address = 112233;
     printf("---------------%d \n", address);
-    ec_startDynamicRegistration(device, &address);
+    address = ec_startDynamicRegistration(device, address);
     printf("---------------%d \n", address);
-    ec_continueDynamicRegistration(device, &address);
+    address = ec_continueDynamicRegistration(device, address);
     printf("---------------%d \n", address);
     ec_stopDynamicRegistration(device);
 

@@ -313,12 +313,12 @@ EC_API void API_FUNC ec_setKeypadId(ec_Device device, int id);
 /*!
  * \brief Start dynamic registration with an input address, the actual addree might be changed
  */
-EC_API void API_FUNC ec_startDynamicRegistration(ec_Device device, int *address);
+EC_API int API_FUNC ec_startDynamicRegistration(ec_Device device, int address);
 
 /*!
  * \brief Continue dynamic registration previous address, the actual addree will be put into the address parameter
  */
-EC_API void API_FUNC ec_continueDynamicRegistration(ec_Device device, int *address);
+EC_API int API_FUNC ec_continueDynamicRegistration(ec_Device device, int address);
 
 /*!
  * \brief Stop dynamic registration

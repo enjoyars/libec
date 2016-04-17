@@ -928,7 +928,7 @@ void API_FUNC ec_setKeypadSn(ec_Device device, int sn)
     return;
 }
 
-void API_FUNC ec_startDynamicRegistration(ec_Device device, int *address)
+int API_FUNC ec_startDynamicRegistration(ec_Device device, int address)
 {
     Device *dev = (Device*)(device);
     unsigned char cmd[1024];
@@ -940,13 +940,13 @@ void API_FUNC ec_startDynamicRegistration(ec_Device device, int *address)
         ec_cmd(device, cmd, 2, 100);
         ec_sleep(300);
         int bSync, bHigh, bLow;
-        bLow = *address % 100;
-        *address = *address / 100;
-        bHigh = *address % 10;
-        *address = *address / 10;
-        bSync = *address % 10;
-        *address = *address / 10;
-        bSync = *address * 16 + bSync;
+        bLow = address % 100;
+        address = address / 100;
+        bHigh = address % 10;
+        address = address / 10;
+        bSync = address % 10;
+        address = address / 10;
+        bSync = address * 16 + bSync;
         cmd[0] = bSync;
         cmd[1] = bHigh;
         cmd[2] = bLow;
@@ -954,26 +954,26 @@ void API_FUNC ec_startDynamicRegistration(ec_Device device, int *address)
         break;
     case EC_DT_RF219:
         cmd[0] = 0x18;
-        cmd[1] = *address % (128 * 256); // recL
-        cmd[2] = (*address / 128) % 256; // recH
-        cmd[3] = *address / (128 * 256); // recU
+        cmd[1] = address % (128 * 256); // recL
+        cmd[2] = (address / 128) % 256; // recH
+        cmd[3] = address / (128 * 256); // recU
         ec_cmd(device, cmd, 4);
 
         ec_sleep(100);
         if ((ec_readPort(dev->port, cmd, 9) == 9)
             && (cmd[0] == 0x27) && (cmd[1] = 0xA5) && (cmd[3] = 0x18) && (cmd[4] == 1))
         {
-            *address = cmd[7] + 128 * (cmd[6] + 256 * cmd[5]);
+            address = cmd[7] + 128 * (cmd[6] + 256 * cmd[5]);
         }
         break;
     default:
-        return;
+        return 0;
     }
     dev->isInDynamicRegtration = true;
-    return;
+    return address;
 }
 
-void API_FUNC ec_continueDynamicRegistration(ec_Device device, int *address)
+int API_FUNC ec_continueDynamicRegistration(ec_Device device, int address)
 {
     Device *dev = (Device*)(device);
     unsigned char cmd[1024];
@@ -992,14 +992,14 @@ void API_FUNC ec_continueDynamicRegistration(ec_Device device, int *address)
         if ((ec_readPort(dev->port, cmd, 9) == 9)
             && (cmd[0] == 0x27) && (cmd[1] = 0xA5) && (cmd[3] = 0x22) && (cmd[4] == 1))
         {
-            *address = cmd[7] + 128 * (cmd[6] + 256 * cmd[5]);
+            address = cmd[7] + 128 * (cmd[6] + 256 * cmd[5]);
         }
         break;
     default:
-        return;
+        return 0;
     }
     dev->isInDynamicRegtration = true;
-    return;
+    return address;
 }
 
 void API_FUNC ec_stopDynamicRegistration(ec_Device device)
