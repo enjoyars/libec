@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <deque>
+#include <vector>
 
 #include "gsp.h"
 #include "../3rdparty/tthread/tinythread.h"
@@ -54,8 +55,8 @@ public:
     std::deque<ec_Event> events;
     bool isInDynamicRegtration;
 
-protected:
-    virtual void dataRecvEvent(Gsp *gsp, unsigned char *data, int length)
+public:
+    void dataRecvEvent(const unsigned char *data, int length)
     {
         printf("package data: ");
         for (int i = 0; i < length; ++i)
@@ -90,6 +91,7 @@ protected:
         len = len - i;
     }
 
+protected:
     int _checkPackage(unsigned char *data, int length)
     {
         switch (deviceType)
@@ -137,12 +139,31 @@ protected:
         	}
             break;
         case EC_DT_RF219:
+            if (data[0] != 0x27 || data[1] != 0xA5)
+            {
+                return 0;
+            }
+            if (data[2] < length - 4)
+            {
+                return 0;
+            }
+            int v = 0;
+            for (int i = 3; i < length - 1; ++i)
+            {
+                v = v ^ data[i];
+            }
+            if (data[length - 1] != v)
+            {
+                return 0;
+            }
+            _processPackage219(data, length);
+            return (4 + data[2]);
             break;
         }
         return 1;
     }
 
-    void _processPackage217(unsigned char *data, int length)
+    void _processPackage217(const unsigned char *data, int length)
     {
         ec_Event event;
         memset(&event, 0, sizeof(ec_Event));
@@ -188,7 +209,7 @@ protected:
         events.push_back(event);
     }
 
-    void _processPackage218(unsigned char *data, int length)
+    void _processPackage218(const unsigned char *data, int length)
     {
         ec_Event event;
         memset(&event, 0, sizeof(ec_Event));
@@ -292,7 +313,7 @@ protected:
         events.push_back(event);
     }
 
-    void _processPackage218DynamicRegstration(unsigned char *data, int length)
+    void _processPackage218DynamicRegstration(const unsigned char *data, int length)
     {
         ec_Event event;
         memset(&event, 0, sizeof(ec_Event));
@@ -304,6 +325,212 @@ protected:
         str = buf;
 
         memcpy(event.data, str.c_str(), str.length() + 1);
+        events.push_back(event);
+    }
+
+    void _processPackage219(const unsigned char *data, int length)
+    {
+        static std::vector<std::string> textBuf(2400, "");
+
+        ec_Event event;
+        event.quizType = quizType;
+        event.timeStamp = 0;
+
+        if ((length == 6 && data[3] == 0x17) || (length == 6 && data[3] == 0x24))
+        {
+            event.eventType = EC_ET_SetId;
+            if (data[4] != 0)
+            {
+                strcpy(event.data, "success");
+            }
+            else
+            {
+                strcpy(event.data, "fail");
+            }
+        }
+        else if (length == 6 && data[3] == 0x34)
+        {
+            event.eventType = EC_ET_Teacher;
+            int key = data[4] & 0x7F;
+            if (key >= 0 && key < 12)
+            {
+                strcpy(event.data, _teacherMessagesString[key]);
+            }
+        }
+        else if (length == 10 && data[3] == 0x31)
+        {
+            event.eventType = EC_ET_DynamicId;
+            sprintf(event.data, "%0X%0X%0X", data[8], data[7], data[6]);
+            event.keypadId = (data[4] & 0x7F) + 8 * data[5];
+        }
+        else if (length >= 8 && data[3] == 0x32)
+        {
+            event.eventType = EC_ET_Student;
+
+            std::string answer = "";
+            event.keypadId = (data[4] & 0x7F) + 8 * data[5];
+
+            // single selection
+            if (quizType == EC_QT_Single)
+            {
+                answer = char('A' + data[6] - 1);
+                if (length >= 10)
+                {
+                    event.timeStamp=(data[7]*256+data[8])*256+data[9];
+                }
+            }
+
+            // multiple selection
+            else if (quizType == EC_QT_Multiple)
+            {
+                for (int i = 0; i < 8; ++i)
+                {
+                    if ((data[6] & (1 << i)) != 0)
+                    {
+                        answer += char('A' + i);
+                    }
+                }
+            }
+
+            // number
+            else if (quizType == EC_QT_Number)
+            {
+                for (int i = 7; i < length - 1; ++i)
+                {
+                    int v = data[i];
+                    if (v >= 0xF4)
+                    {
+                        // End of message
+                        break;
+                    }
+                    else if (v <= 0x60)
+                    {
+                        // Contents, converted to ASCII code by plus 0x20
+                        answer += (char)(0x20 + v);
+                    }
+                    else if (v == 0xF0)
+                    {
+                        // Denominator follow
+                        answer += " $denominator$_";
+                    }
+                    else if (v == 0xF1)
+                    {
+                        // Molecular follow
+                        answer += " $molecular$_";
+                    }
+                }
+            }
+
+            // text
+            else if (quizType == EC_QT_Text)
+            {
+                for (int i = 7; i < length - 2; ++i)
+                {
+                    int v = data[i];
+                    if (v >= 0xF4)
+                    {
+                        // End of message
+                        continue;
+                    }
+                    else if (v <= 0x60)
+                    {
+                        // Contents, converted to ASCII code by plus 0x20
+                        answer += (char)(0x20 + v);
+                    }
+                }
+                if ((data[length - 2] & 0x80) == 0)
+                {
+                    textBuf[event.keypadId] += answer;
+                    answer = "";
+                }
+                else
+                {
+                    answer = textBuf[event.keypadId] + answer;
+                    textBuf[event.keypadId] = "";
+                }
+            }
+
+            // classify
+            else if (quizType == EC_QT_Classify)
+            {
+                int n = 0;
+                for (int i = 7; i < 7 + 12; i += 2)
+                {
+                    answer += char('1' + n);
+                    answer += '.';
+                    ++n;
+                    for (int j = 0; j < 8; ++j)
+                    {
+                        if ((data[i] & (1 << j)) != 0)
+                        {
+                            answer += char('A' + j);
+                        }
+                    }
+                    for (int j = 8; j < 10; ++j)
+                    {
+                        if ((data[i + 1] & (1 << (j - 8))) != 0)
+                        {
+                            answer += char('A' + j);
+                        }
+                    }
+                    if (i < 7 + 12 + 2)
+                    {
+                        answer += ' ';
+                    }
+                }
+            }
+
+            // sort
+            else if (quizType == EC_QT_Sort)
+            {
+                for (int i = 7; i < 7 + 9; ++i)
+                {
+                    if (data[i] != 0)
+                    {
+                        answer += char('A' + data[i] - 1);
+                    }
+                }
+            }
+
+            // judge Or vote
+            else if (quizType == EC_QT_JudgeOrVote)
+            {
+                answer += char('A' + data[6] - 1);
+            }
+
+            // homework
+            else if ((quizType == EC_QT_Homework) || (quizType == EC_QT_SelfPaced))
+            {
+                event.quizNumber = data[6];
+
+                for (int i = 7; i < length - 1; ++i)
+                {
+                    int v = data[i];
+                    if (v >= 0xF4)
+                    {
+                        // End of message
+                        continue;
+                    }
+                    else if (v <= 0x60)
+                    {
+                        // Contents, converted to ASCII code by plus 0x20
+                        answer += (char)(0x20 + v);
+                    }
+                }
+            }
+
+            // rush
+            else if (quizType == EC_QT_Rush)
+            {
+                answer += "rush";
+            }
+
+            strcpy(event.data, answer.c_str());
+        }
+        else
+        {
+            return;
+        }
         events.push_back(event);
     }
 };
@@ -358,7 +585,7 @@ EC_API void API_FUNC ec_destroyDevice(ec_Device device)
     return;
 }
 
-static bool ec_cmd(ec_Device device, const unsigned char *cmd, int length, int timeout)
+static bool ec_cmd(ec_Device device, const unsigned char *cmd, int length, int timeout = 100)
 {
 	Device *dev = (Device*)(device);
     unsigned char data[1024];
@@ -479,14 +706,29 @@ void API_FUNC ec_closeDevice(ec_Device device)
 int API_FUNC ec_getEvent(ec_Device device, ec_Event *event)
 {
     Device *dev = (Device*)(device);
-    int r = 0;
+
+    unsigned char data[1024];
+    int length = sizeof(data);
+    while (1)
+    {
+        length = ec_readPort(dev->port, data, sizeof(data));
+        if (length > 0)
+        {
+            dev->dataRecvEvent(data, length);
+        }
+        else
+        {
+            break;
+        }
+    }
+
     if (dev->events.empty() == false)
     {
         memcpy(event, &(dev->events.front()), sizeof(ec_Event));
         dev->events.pop_front();
-        r = 1;
+        return 1;
     }
-    return r;
+    return 0;
 }
 
 int API_FUNC ec_startQuiz(ec_Device device, int quizType, int param1, int param2, int isNewQuiz)
@@ -530,11 +772,11 @@ int API_FUNC ec_startQuiz(ec_Device device, int quizType, int param1, int param2
         case EC_QT_Rush:
         case EC_QT_Single:
             cmd[1] = 0;
-            cmd[2] = min(1, max(10, param1));
+            cmd[2] = max(1, min(10, param1));
             break;
         case EC_QT_Multiple:
-            cmd[1] = min(1, max(10, param2 - 1));
-            cmd[2] = min(1, max(4, param1));
+            cmd[1] = max(1, min(10, param2 - 1));
+            cmd[2] = max(1, min(4, param1));
             break;
         case EC_QT_Number:
             cmd[1] = 8;
@@ -542,23 +784,23 @@ int API_FUNC ec_startQuiz(ec_Device device, int quizType, int param1, int param2
             break;
         case EC_QT_Text:
             cmd[1] = 7;
-            cmd[2] = min(1, max(120, param1));
+            cmd[2] = max(1, min(120, param1));
             break;
         case EC_QT_Classify:
             cmd[1] = 6;
-            cmd[2] = min(1, max(10, param1)) | (min(1, max(6, param2)) << 4);
+            cmd[2] = max(1, min(10, param1)) | (max(1, min(6, param2)) << 4);
             break;
         case EC_QT_Sort:
             cmd[1] = 5;
-            cmd[2] = min(1, max(9, param1));
+            cmd[2] = max(1, min(9, param1));
             break;
         case EC_QT_JudgeOrVote:
-            cmd[1] = min(10, max(15, param2));
-            cmd[2] = min(1, max(3, param1));
+            cmd[1] = max(10, min(15, param2));
+            cmd[2] = max(1, min(3, param1));
             break;
         case EC_QT_Homework:
-            cmd[1] = 0x10 + min(1, max(7, param2));
-            cmd[2] = min(1, max(100, param1));
+            cmd[1] = 0x10 + max(1, min(7, param2));
+            cmd[2] = max(1, min(100, param1));
             break;
         }
         if (isNewQuiz)
@@ -672,7 +914,7 @@ void API_FUNC ec_setKeypadSn(ec_Device device, int sn)
     return;
 }
 
-void API_FUNC ec_startDynamicRegistration(ec_Device device, int address)
+void API_FUNC ec_startDynamicRegistration(ec_Device device, int *address)
 {
     Device *dev = (Device*)(device);
     unsigned char cmd[1024];
@@ -684,19 +926,31 @@ void API_FUNC ec_startDynamicRegistration(ec_Device device, int address)
         ec_cmd(device, cmd, 2, 100);
         ec_sleep(300);
         int bSync, bHigh, bLow;
-        bLow = address % 100;
-        address = address / 100;
-        bHigh = address % 10;
-        address = address / 10;
-        bSync = address % 10;
-        address = address / 10;
-        bSync = address * 16 + bSync;
+        bLow = *address % 100;
+        *address = *address / 100;
+        bHigh = *address % 10;
+        *address = *address / 10;
+        bSync = *address % 10;
+        *address = *address / 10;
+        bSync = *address * 16 + bSync;
         cmd[0] = bSync;
         cmd[1] = bHigh;
         cmd[2] = bLow;
         ec_writePort(dev->port, cmd, 3, 100);
         break;
     case EC_DT_RF219:
+        cmd[0] = 0x18;
+        cmd[1] = *address % (128 * 256); // recL
+        cmd[2] = (*address / 128) % 256; // recH
+        cmd[3] = *address / (128 * 256); // recU
+        ec_cmd(device, cmd, 4);
+
+        ec_sleep(100);
+        if ((ec_readPort(dev->port, cmd, 9) == 9)
+            && (cmd[0] == 0x27) && (cmd[1] = 0xA5) && (cmd[3] = 0x18) && (cmd[4] == 1))
+        {
+            *address = cmd[7] + 128 * (cmd[6] + 256 * cmd[5]);
+        }
         break;
     default:
         return;
@@ -705,7 +959,7 @@ void API_FUNC ec_startDynamicRegistration(ec_Device device, int address)
     return;
 }
 
-void API_FUNC ec_continueDynamicRegistration(ec_Device device)
+void API_FUNC ec_continueDynamicRegistration(ec_Device device, int *address)
 {
     Device *dev = (Device*)(device);
     unsigned char cmd[1024];
@@ -717,6 +971,15 @@ void API_FUNC ec_continueDynamicRegistration(ec_Device device)
         ec_cmd(device, cmd, 2, 100);
         break;
     case EC_DT_RF219:
+        cmd[0] = 0x22;
+        ec_cmd(device, cmd, 2, 100);
+
+        ec_sleep(100);
+        if ((ec_readPort(dev->port, cmd, 9) == 9)
+            && (cmd[0] == 0x27) && (cmd[1] = 0xA5) && (cmd[3] = 0x22) && (cmd[4] == 1))
+        {
+            *address = cmd[7] + 128 * (cmd[6] + 256 * cmd[5]);
+        }
         break;
     default:
         return;
@@ -737,6 +1000,10 @@ void API_FUNC ec_stopDynamicRegistration(ec_Device device)
         ec_cmd(device, cmd, 2, 100);
         break;
     case EC_DT_RF219:
+        cmd[0] = 0x19;
+        ec_cmd(device, cmd, 2, 100);
+//        ec_sleep(100);
+//        ec_readPort(dev->port, cmd, 5);
         break;
     default:
         return;
@@ -755,22 +1022,43 @@ int API_FUNC ec_checkDeviceSn(ec_Device device, const char *sn)
     Device *dev = (Device*)(device);
     unsigned char cmd[1024];
 
-    cmd[0] = 0x55;
-    cmd[1] = 0x80;
-    ec_cmd(device, cmd, 2, 100);
-    ec_sleep(100);
+    switch (dev->deviceType)
+    {
+    case EC_DT_RF218:
+        cmd[0] = 0x55;
+        cmd[1] = 0x80;
+        ec_cmd(device, cmd, 2, 100);
 
-    cmd[0] = 0x5E;
-    cmd[1] = 0x80;
-    cmd[2] = 0xDE;
-    for (int i = 0; i < 8; ++i)
-    {
-        cmd[i + 3] = 0x80 | sn[i];
-    }
-    ec_cmd(device, cmd, 2, 100);
-    if (ec_readPort(dev->port, cmd, 1, 300) == 1 && cmd[0] == 122)
-    {
-        return 1;
+        ec_sleep(100);
+        cmd[0] = 0x5E;
+        cmd[1] = 0x80;
+        cmd[2] = 0xDE;
+        for (int i = 0; i < 8; ++i)
+        {
+            cmd[i + 3] = 0x80 | sn[i];
+        }
+        ec_cmd(device, cmd, 2, 100);
+        if (ec_readPort(dev->port, cmd, 1, 300) == 1 && cmd[0] == 122)
+        {
+            return 1;
+        }
+    case EC_DT_RF219:
+        cmd[0] = 0x1A;
+        for (int i = 0; i < 8; ++i)
+        {
+            //unsigned char t = (unsigned char)atoi(sn.substr(i, 1).c_str());
+            unsigned char t = sn[i];
+            cmd[i + 1] = t;
+        }
+
+        ec_cmd(device, cmd, sizeof(cmd));
+        ec_sleep(100);
+        if ((ec_readPort(dev->port, cmd, 6) == 6)
+            && (cmd[0] == 0x27) && (cmd[1] = 0xA5) && (cmd[3] = 0x1A) && (cmd[4] == 1))
+        {
+            return 1;
+        }
+        break;
     }
 
     return 0;

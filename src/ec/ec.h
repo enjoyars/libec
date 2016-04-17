@@ -64,6 +64,7 @@
 #define EC_ET_Teacher 1 //!< Message Type: Teacher
 #define EC_ET_Student 2 //!< Message Type: Student
 #define EC_ET_SetId 3 //!< Message Type: SetId
+#define EC_ET_DynamicId 4 //!< Message Type: DynamicId
 //@}
 
 
@@ -82,7 +83,9 @@
 #define EC_QT_Sort 7 //!< Quiz Type: Sort (rf219 only)
 #define EC_QT_JudgeOrVote 8 //!< Quiz Type: Judge Or Vote (rf219 only)
 #define EC_QT_SelectId 9 //!< Select a buzzer Id (rf215 only)
-#define EC_QT_Control 10  //!<Control buzzer beep on, beep off and power off (rf215 only)
+#define EC_QT_Control 10  //!< Control buzzer beep on, beep off and power off (rf215 only)
+#define EC_QT_SelfPaced 11 // only for 219
+#define EC_QT_Notification = 12 // only for sending auth info to 228
 //@}
 
 
@@ -122,8 +125,8 @@ EC_API void API_FUNC ec_sleep(int ms);
 
 EC_API ec_Port API_FUNC ec_openPort(const char *path, int baud);
 EC_API void API_FUNC ec_closePort(ec_Port port);
-EC_API int API_FUNC ec_readPort(ec_Port port, unsigned char *data, int length, int timeout);
-EC_API int API_FUNC ec_writePort(ec_Port port, unsigned char *data, int length, int timeout);
+EC_API int API_FUNC ec_readPort(ec_Port port, unsigned char *data, int length, int timeout = 0);
+EC_API int API_FUNC ec_writePort(ec_Port port, unsigned char *data, int length, int timeout = 0);
 EC_API void API_FUNC ec_flushPort(ec_Port port);
 
 EC_API ec_Device API_FUNC ec_createDevice(ec_Port port, int deviceType);
@@ -142,8 +145,8 @@ EC_API void API_FUNC ec_stopQuiz(ec_Device device);
 EC_API void API_FUNC ec_setKeypadId(ec_Device device, int id);
 EC_API void API_FUNC ec_setKeypadSn(ec_Device device, int sn);
 
-EC_API void API_FUNC ec_startDynamicRegistration(ec_Device device, int address);
-EC_API void API_FUNC ec_continueDynamicRegistration(ec_Device device);
+EC_API void API_FUNC ec_startDynamicRegistration(ec_Device device, int *address);
+EC_API void API_FUNC ec_continueDynamicRegistration(ec_Device device, int *address);
 EC_API void API_FUNC ec_stopDynamicRegistration(ec_Device device);
 
 EC_API int API_FUNC ec_checkDeviceSn(ec_Device device, const char *sn);

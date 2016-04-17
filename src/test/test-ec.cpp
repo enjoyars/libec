@@ -70,28 +70,37 @@ int main(int argc, char **argv)
     ec_Port port = ec_openPort("hid://", 256000);
     if (port == NULL)
     {
-        printf("Port Error. \n");
+        printf("ec_openPort Error. \n");
         return 0;
     }
     ec_Device device = ec_createDevice(port, deviceType);
+
 //    ec_setDeviceMode(device, EC_DM_Static);
 //    ec_sleep(500);
-    if (ec_openDevice(device, 1, 40) == 0)
-    {
-        printf("Open Device Error. \n");
-        return 0;
-    }
-    ec_sleep(500);
+    int address = 112233;
+    printf("---------------%d \n", address);
+    ec_startDynamicRegistration(device, &address);
+    printf("---------------%d \n", address);
+    ec_continueDynamicRegistration(device, &address);
+    printf("---------------%d \n", address);
+    ec_stopDynamicRegistration(device);
 
+//    return 0;
 
-
-//    ec_startDynamicRegistration(device, 11112);
-
-//    ec_openDevice(device, 1, 10);
+//    if (ec_openDevice(device, 1, 40) == 0)
+//    {
+//        printf("ec_openDevice Error. \n");
+//        return 0;
+//    }
 //    ec_sleep(500);
-//
-    ec_startQuiz(device, EC_QT_Single, 8);
-    return 0;
+
+
+
+//    if (ec_startQuiz(device, EC_QT_Single, 8) == 0)
+//    {
+//        printf("ec_startQuiz Error. \n");
+//        return 0;
+//    }
 
 //    ec_setKeypadId(device, 1);
 //    ec_sleep(1000);
@@ -111,12 +120,27 @@ int main(int argc, char **argv)
 
 //    ec_stopDynamicRegistration(device);
 
+    while (1)
+    {
+        ec_Event event;
+        if (ec_getEvent(device, &event))
+        {
+            printf("%d: %s \n", event.keypadId, event.data);
+        }
+        else
+        {
+            ec_sleep(5);
+        }
+    }
+
+    ec_sleep(5000);
     ec_stopQuiz(device);
     ec_closeDevice(device);
-    ec_destroyDevice(&device);
-    ec_closePort(&port);
 
-    printf("Finish¡£ \n");
+    ec_destroyDevice(device);
+    ec_closePort(port);
+
+    printf("Finish \n");
 
     return 0;
 }

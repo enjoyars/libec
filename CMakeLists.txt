@@ -24,10 +24,10 @@ set(CMAKE_INSTALL_PREFIX ./${PROJECT_NAME})
 #        endif()
 #    endforeach()
 #endif()
-if(UNIX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
-endif()
+#if(UNIX)
+#    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+#    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+#endif()
 
 #####################################################################
 # Project Source
