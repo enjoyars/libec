@@ -58,12 +58,12 @@ public:
 public:
     void dataRecvEvent(const unsigned char *data, int length)
     {
-        printf("package data: ");
-        for (int i = 0; i < length; ++i)
-        {
-            printf("%X ", data[i]);
-        }
-        printf("\n");
+//        printf("package data: ");
+//        for (int i = 0; i < length; ++i)
+//        {
+//            printf("%X ", data[i]);
+//        }
+//        printf("\n");
 
         static unsigned char buf[1024 * 64];
         static int len = 0;
@@ -540,6 +540,13 @@ void API_FUNC ec_sleep(int ms)
 	tthread::this_thread::sleep_for(tthread::chrono::milliseconds(ms));
 }
 
+const char* API_FUNC ec_enumerateAllHidPorts()
+{
+    static std::string str;
+    str = enumerateAllHidPorts();
+    return str.c_str();
+}
+
 ec_Port API_FUNC ec_openPort(const char *path, int baud)
 {
     return createGsp(path, baud);
@@ -558,10 +565,10 @@ int API_FUNC ec_readPort(ec_Port port, unsigned char *data, int length, int time
 
 int API_FUNC ec_writePort(ec_Port port, unsigned char *data, int length, int timeout)
 {
-    for (int i = 0; i < length; ++i)
-    {
-        printf("%0X ", data[i]);
-    }
+//    for (int i = 0; i < length; ++i)
+//    {
+//        printf("%0X ", data[i]);
+//    }
     Gsp *gsp = (Gsp*)(port);
     return gsp->write(data, length, timeout);
 }

@@ -32,16 +32,8 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    // User can use serial number as address like "hid://0007800D" to select a hid device to be opened.
-//    printf("Start listing all current HID device:\n");
-//    char buf[100];
-//    int i = 0;
-//    while (rf21x_getHidSerialNumber(i, buf, sizeof(buf)))
-//    {
-//        printf("HID Device %d: %s\n", i, buf);
-//        ++i;
-//    }
-//    printf("Finish listing all current HID device.\n\n");
+    // User can use serial number as address like "hid://0007800D" to select a HID device to be opened.
+    printf("Current HID devices: %s\n", ec_enumerateAllHidPorts());
 
     char *typeName = argv[1];
     int deviceType = EC_DT_Unknown;

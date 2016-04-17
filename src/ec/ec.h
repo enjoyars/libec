@@ -131,6 +131,11 @@ typedef void* ec_Device;
 EC_API void API_FUNC ec_sleep(int ms);
 
 /*!
+ * \brief Enumerate all USB HID ports and storge their path in data, each path takes 10 bytes
+ */
+EC_API const char* API_FUNC ec_enumerateAllHidPorts();
+
+/*!
  * \brief Open a general serial port with speed baud, return the port handle
  */
 EC_API ec_Port API_FUNC ec_openPort(const char *path, int baud);

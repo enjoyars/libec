@@ -57,9 +57,18 @@ public:
 };
 
 /*!
- * \brief Create a serial port class.
+ * \brief Enumerate all HID ports for Gsp.
+ */
+std::string enumerateAllHidPorts();
+
+/*!
+ * \brief Create a serial port.
  */
 Gsp* createGsp(const std::string path, int baud);
+
+/*!
+ * \brief Destroy the serial port.
+ */
 void destroyGsp(Gsp *gsp);
 
 #endif
