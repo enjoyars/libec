@@ -58,12 +58,12 @@ public:
 public:
     void dataRecvEvent(const unsigned char *data, int length)
     {
-//        printf("package data: ");
-//        for (int i = 0; i < length; ++i)
-//        {
-//            printf("%X ", data[i]);
-//        }
-//        printf("\n");
+        printf("dataRecvEvent data: ");
+        for (int i = 0; i < length; ++i)
+        {
+            printf("%X ", data[i]);
+        }
+        printf("\n");
 
         static unsigned char buf[1024 * 64];
         static int len = 0;
@@ -94,6 +94,13 @@ public:
 protected:
     int _checkPackage(unsigned char *data, int length)
     {
+        printf("_checkPackage data: ");
+        for (int i = 0; i < length; ++i)
+        {
+            printf("%X ", data[i]);
+        }
+        printf("\n");
+
         switch (deviceType)
         {
         case EC_DT_RF215:
@@ -139,24 +146,20 @@ protected:
         	}
             break;
         case EC_DT_RF219:
-            if (data[0] != 0x27 || data[1] != 0xA5)
-            {
-                return 0;
-            }
-            if (data[2] < length - 4)
+            if (data[0] != 0x27 || data[1] != 0xA5 || data[2] > length - 4)
             {
                 return 0;
             }
             int v = 0;
-            for (int i = 3; i < length - 1; ++i)
+            for (int i = 3; i < 3 + data[2]; ++i)
             {
                 v = v ^ data[i];
             }
-            if (data[length - 1] != v)
+            if (data[3 + data[2]] != v)
             {
                 return 0;
             }
-            _processPackage219(data, length);
+            _processPackage219(data, 4 + data[2]);
             return (4 + data[2]);
             break;
         }
@@ -565,10 +568,13 @@ int API_FUNC ec_readPort(ec_Port port, unsigned char *data, int length, int time
 
 int API_FUNC ec_writePort(ec_Port port, unsigned char *data, int length, int timeout)
 {
-//    for (int i = 0; i < length; ++i)
-//    {
-//        printf("%0X ", data[i]);
-//    }
+    printf("ec_writePort: ");
+    for (int i = 0; i < length; ++i)
+    {
+        printf("%0X ", data[i]);
+    }
+    printf("\n");
+
     Gsp *gsp = (Gsp*)(port);
     return gsp->write(data, length, timeout);
 }
@@ -592,7 +598,7 @@ EC_API void API_FUNC ec_destroyDevice(ec_Device device)
     return;
 }
 
-static bool ec_cmd(ec_Device device, const unsigned char *cmd, int length, int timeout = 0)
+static bool ec_cmd(ec_Device device, const unsigned char *cmd, int length, int timeout = 10)
 {
 	Device *dev = (Device*)(device);
     unsigned char data[1024];
@@ -744,8 +750,8 @@ int API_FUNC ec_getEvent(ec_Device device, ec_Event *event)
 
 int API_FUNC ec_startQuiz(ec_Device device, int quizType, int param1, int param2, int isNewQuiz)
 {
-    ec_stopQuiz(device);
-    ec_sleep(100);
+//    ec_stopQuiz(device);
+//    ec_sleep(100);
 
     Device *dev = (Device*)(device);
     unsigned char cmd[1024];
@@ -819,13 +825,9 @@ int API_FUNC ec_startQuiz(ec_Device device, int quizType, int param1, int param2
         }
         if (isNewQuiz)
         {
-            dev->newQuizFlag = 0;
-        }
-        else
-        {
             dev->newQuizFlag = (dev->newQuizFlag + 1) % 4;
         }
-        cmd[2] |= (dev->newQuizFlag << 5);
+        cmd[1] |= (dev->newQuizFlag << 5);
         ec_cmd(device, cmd, 3);
         break;
     default:

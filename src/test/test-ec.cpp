@@ -86,7 +86,7 @@ int main(int argc, char **argv)
     }
     ec_sleep(1000);
 
-    if (ec_startQuiz(device, EC_QT_Single, 8) == 0)
+    if (ec_startQuiz(device, EC_QT_Text, 8, -1, 1) == 0)
     {
         printf("ec_startQuiz Error. \n");
         return 0;
