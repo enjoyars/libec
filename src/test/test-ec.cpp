@@ -84,9 +84,9 @@ int main(int argc, char **argv)
         printf("ec_openDevice Error. \n");
         return 0;
     }
-    ec_sleep(500);
+    ec_sleep(1000);
 
-    if (ec_startQuiz(device, EC_QT_Text, 8, -1, 1) == 0)
+    if (ec_startQuiz(device, EC_QT_Text, 60, -1, 1) == 0)
     {
         printf("ec_startQuiz Error. \n");
         return 0;
@@ -120,7 +120,7 @@ int main(int argc, char **argv)
         }
         else
         {
-            ec_sleep(5);
+            ec_sleep(1);
         }
     }
 
