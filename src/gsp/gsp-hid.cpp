@@ -168,10 +168,7 @@ void GspHID::flush()
 
 int GspHID::_read(void *data, int length)
 {
-    if (length > 63)
-    {
-        length = 63;
-    }
+    length = min(length, 63);
 
     // buffer size must be 64.
     unsigned char buf[64];
@@ -179,32 +176,17 @@ int GspHID::_read(void *data, int length)
     buf[0] = length;
 
     // buffer size must be 64. buf[0] changed after reading.
-    int r = hid_read(_device, buf, 64);
-
-    if(r <= 1)
+    if(hid_read(_device, buf, 64) <= 1)
     {
         return 0;
     }
-    if (buf[0] < length)
-    {
-        r = buf[0];
-    }
-    else
-    {
-        r = length;
-    }
-    //r = std::min(buf[0], length);
-
-    memcpy(data, buf + 1, r);
-    return r;
+    memcpy(data, buf + 1, buf[0]);
+    return buf[0];
 }
 
 int GspHID::_write(void *data, int length)
 {
-    if (length > 63)
-    {
-        length = 63;
-    }
+    length = min(length, 63);
 
     // buffer size must be 64.
     unsigned char buf[64];
@@ -213,9 +195,7 @@ int GspHID::_write(void *data, int length)
     memcpy(buf + 1, data, length);
 
     // buffer size must be 64. buf[0] changed after writing.
-    int r = hid_write(_device, buf, 64);
-
-    if (r >= length)
+    if (hid_write(_device, buf, 64) == 64)
     {
         return buf[0];
     }
