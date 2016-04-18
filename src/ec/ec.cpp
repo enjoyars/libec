@@ -641,13 +641,13 @@ void API_FUNC ec_setDeviceMode(ec_Device device, int deviceMode)
 		{
 			cmd[0] = 0x50;
 			cmd[1] = 0xC2;
-			ec_cmd(device, cmd, 2, 100);
+            ec_cmd(device, cmd, 2);
 		}
 		else if (deviceMode == EC_DM_Dynamic)
 		{
 			cmd[0] = 0x50;
 			cmd[1] = 0xC1;
-			ec_cmd(device, cmd, 2, 100);
+            ec_cmd(device, cmd, 2);
 		}
 		break;
 	default:
@@ -671,23 +671,23 @@ int API_FUNC ec_connectDevice(ec_Device device, int minId, int maxId)
     case EC_DT_RF218:
         cmd[0] = 0x70 | (maxId % 0x10);
         cmd[1] = 0x80 | (maxId / 0x10);
-        ec_cmd(device, cmd, 2, 100);
+        ec_cmd(device, cmd, 2);
         break;
     case EC_DT_RF219:
         cmd[0] = 0x10;
         cmd[1] = 0x00;
-        ec_cmd(device, cmd, 2, 100);
+        ec_cmd(device, cmd, 2);
         ec_readPort(dev->port, cmd, 6, 500);
         cmd[0] = 0x14;
         cmd[1] = minId % 8;
         cmd[2] = minId / 8;
         cmd[3] = maxId % 8;
         cmd[4] = maxId / 8;
-        ec_cmd(device, cmd, 5, 100);
-        ec_cmd(device, cmd, 5, 500);
+        ec_cmd(device, cmd, 5);
+        ec_cmd(device, cmd, 5);
         cmd[0] = 0x12;
         cmd[1] = 0x00;
-        ec_cmd(device, cmd, 2, 100);
+        ec_cmd(device, cmd, 2);
         ec_readPort(dev->port, cmd, 6, 2000);
         break;
     default:
@@ -707,9 +707,9 @@ void API_FUNC ec_disconnectDevice(ec_Device device)
     {
     case EC_DT_RF219:
         cmd[0] = 0x11;
-        ec_cmd(device, cmd, 1, 100);
+        ec_cmd(device, cmd, 1);
         cmd[0] = 0x13;
-        ec_cmd(device, cmd, 1, 100);
+        ec_cmd(device, cmd, 1);
         break;
     }
     return;
@@ -755,7 +755,7 @@ int API_FUNC ec_startQuiz(ec_Device device, int quizType, int param1, int param2
     case EC_DT_RF217:
         cmd[0] = 0x5A;
         cmd[1] = 0x80;
-        ec_cmd(device, cmd, 2, 100);
+        ec_cmd(device, cmd, 2);
         break;
     case EC_DT_RF218:
         cmd[0] = 0x5A;
@@ -777,7 +777,7 @@ int API_FUNC ec_startQuiz(ec_Device device, int quizType, int param1, int param2
         default:
             return 0;
         }
-        ec_cmd(device, cmd, 2, 100);
+        ec_cmd(device, cmd, 2);
         break;
     case EC_DT_RF219:
         cmd[0] = 0x15;
@@ -826,7 +826,7 @@ int API_FUNC ec_startQuiz(ec_Device device, int quizType, int param1, int param2
             dev->newQuizFlag = (dev->newQuizFlag + 1) % 4;
         }
         cmd[2] |= (dev->newQuizFlag << 5);
-        ec_cmd(device, cmd, 3, 100);
+        ec_cmd(device, cmd, 3);
         break;
     default:
         return 0;
@@ -845,11 +845,11 @@ void API_FUNC ec_stopQuiz(ec_Device device)
     case EC_DT_RF218:
         cmd[0] = 0x5B;
         cmd[1] = 0x80;
-        ec_cmd(device, cmd, 2, 100);
+        ec_cmd(device, cmd, 2);
         break;
     case EC_DT_RF219:
         cmd[0] = 0x16;
-        ec_cmd(device, cmd, 2, 100);
+        ec_cmd(device, cmd, 2);
         break;
     default:
         return;
@@ -869,7 +869,7 @@ void API_FUNC ec_setKeypadId(ec_Device device, int id)
     	{
             cmd[0] = 0x60 | (id % 0x10);
             cmd[1] = 0x80 | (id / 0x10);
-            ec_cmd(device, cmd, 2, 100);
+            ec_cmd(device, cmd, 2);
     	}
     	else if (dev->deviceMode == EC_DM_Dynamic)
     	{
@@ -877,19 +877,19 @@ void API_FUNC ec_setKeypadId(ec_Device device, int id)
     		{
                 cmd[0] = 0x50;
                 cmd[1] = 0xBB;
-                ec_cmd(device, cmd, 2, 100);
+                ec_cmd(device, cmd, 2);
     		}
     		else if (id < 0)
     		{
                 cmd[0] = 0x50;
                 cmd[1] = 0xBC;
-                ec_cmd(device, cmd, 2, 100);
+                ec_cmd(device, cmd, 2);
     		}
     		else
     		{
                 cmd[0] = 0x50;
                 cmd[1] = 0xBD;
-                ec_cmd(device, cmd, 2, 100);
+                ec_cmd(device, cmd, 2);
                 ec_readPort(dev->port, cmd, 1, 500);
                 cmd[0] = id % 0x10;
                 cmd[1] = id / 0x10;
@@ -927,7 +927,7 @@ void API_FUNC ec_setKeypadSn(ec_Device device, int sn)
     case EC_DT_RF218:
         cmd[0] = 0x50;
         cmd[1] = 0xC6;
-        ec_cmd(device, cmd, 2, 100);
+        ec_cmd(device, cmd, 2);
         ec_sleep(300);
         cmd[0] = sn % 0xFF;
         cmd[1] = sn / 0xFF;
@@ -951,7 +951,7 @@ int API_FUNC ec_startDynamicRegistration(ec_Device device, int address)
     case EC_DT_RF218:
         cmd[0] = 0x50;
         cmd[1] = 0xB9;
-        ec_cmd(device, cmd, 2, 100);
+        ec_cmd(device, cmd, 2);
         ec_sleep(300);
         int bSync, bHigh, bLow;
         bLow = address % 100;
@@ -996,11 +996,11 @@ int API_FUNC ec_continueDynamicRegistration(ec_Device device, int address)
     case EC_DT_RF218:
         cmd[0] = 0x50;
         cmd[1] = 0xBA;
-        ec_cmd(device, cmd, 2, 100);
+        ec_cmd(device, cmd, 2);
         break;
     case EC_DT_RF219:
         cmd[0] = 0x22;
-        ec_cmd(device, cmd, 2, 100);
+        ec_cmd(device, cmd, 2);
 
         ec_sleep(100);
         if ((ec_readPort(dev->port, cmd, 9) == 9)
@@ -1025,11 +1025,11 @@ void API_FUNC ec_stopDynamicRegistration(ec_Device device)
     case EC_DT_RF218:
         cmd[0] = 0x50;
         cmd[1] = 0xB8;
-        ec_cmd(device, cmd, 2, 100);
+        ec_cmd(device, cmd, 2);
         break;
     case EC_DT_RF219:
         cmd[0] = 0x19;
-        ec_cmd(device, cmd, 2, 100);
+        ec_cmd(device, cmd, 2);
 //        ec_sleep(100);
 //        ec_readPort(dev->port, cmd, 5);
         break;
@@ -1055,7 +1055,7 @@ int API_FUNC ec_checkDeviceSn(ec_Device device, const char *sn)
     case EC_DT_RF218:
         cmd[0] = 0x55;
         cmd[1] = 0x80;
-        ec_cmd(device, cmd, 2, 100);
+        ec_cmd(device, cmd, 2);
 
         ec_sleep(100);
         cmd[0] = 0x5E;
@@ -1065,7 +1065,7 @@ int API_FUNC ec_checkDeviceSn(ec_Device device, const char *sn)
         {
             cmd[i + 3] = 0x80 | sn[i];
         }
-        ec_cmd(device, cmd, 2, 100);
+        ec_cmd(device, cmd, 2);
         if (ec_readPort(dev->port, cmd, 1, 300) == 1 && cmd[0] == 122)
         {
             return 1;
