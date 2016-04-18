@@ -2,6 +2,7 @@ LIBRARY "ec"
 EXPORTS
 
 ec_sleep
+ec_enumerateAllHidPorts
 ec_openPort
 ec_closePort
 ec_readPort
