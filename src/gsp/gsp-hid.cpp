@@ -124,28 +124,17 @@ bool GspHID::isOpened()
 int GspHID::read(unsigned char *data, int length, int timeout)
 {
     int s = 0;
-    int t = -1;
-    while (1)
+    double t = tictoc();
+    for (s += max(0, _read((char *)data + s, length - s));
+         s < length;
+         s += max(0, _read((char *)data + s, length - s)))
     {
-        int r = _read((char*)data + s, length - s);
-        if (r > 0)
+//        printf("#%d \n", s);
+        if (tictoc() - t > timeout)
         {
-            s += r;
-            if (s >= length)
-            {
-                break;
-            }
+            break;
         }
-        else
-        {
-            ++t;
-            if (t >= timeout)
-            {
-                break;
-            }
-            tthread::this_thread::sleep_for(tthread::chrono::milliseconds(1));
-        }
-        //printf("readData: %d\n", r);
+//        tthread::this_thread::sleep_for(tthread::chrono::microseconds(1));
     }
     return s;
 }
