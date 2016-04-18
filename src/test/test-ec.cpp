@@ -69,30 +69,28 @@ int main(int argc, char **argv)
 
 //    ec_setDeviceMode(device, EC_DM_Static);
 //    ec_sleep(500);
-    int address = 112233;
-    printf("---------------%d \n", address);
-    address = ec_startDynamicRegistration(device, address);
-    printf("---------------%d \n", address);
-    address = ec_continueDynamicRegistration(device, address);
-    printf("---------------%d \n", address);
-    ec_stopDynamicRegistration(device);
+//    int address = 112233;
+//    printf("---------------%d \n", address);
+//    address = ec_startDynamicRegistration(device, address);
+//    printf("---------------%d \n", address);
+//    address = ec_continueDynamicRegistration(device, address);
+//    printf("---------------%d \n", address);
+//    ec_stopDynamicRegistration(device);
 
 //    return 0;
 
-//    if (ec_connectDevice(device, 1, 40) == 0)
-//    {
-//        printf("ec_openDevice Error. \n");
-//        return 0;
-//    }
-//    ec_sleep(500);
+    if (ec_connectDevice(device, 1, 40) == 0)
+    {
+        printf("ec_openDevice Error. \n");
+        return 0;
+    }
+    ec_sleep(1000);
 
-
-
-//    if (ec_startQuiz(device, EC_QT_Single, 8) == 0)
-//    {
-//        printf("ec_startQuiz Error. \n");
-//        return 0;
-//    }
+    if (ec_startQuiz(device, EC_QT_Single, 8) == 0)
+    {
+        printf("ec_startQuiz Error. \n");
+        return 0;
+    }
 
 //    ec_setKeypadId(device, 1);
 //    ec_sleep(1000);
@@ -112,6 +110,7 @@ int main(int argc, char **argv)
 
 //    ec_stopDynamicRegistration(device);
 
+    printf("Getting Events... \n");
     while (1)
     {
         ec_Event event;
@@ -125,7 +124,7 @@ int main(int argc, char **argv)
         }
     }
 
-    ec_sleep(5000);
+    ec_sleep(2000);
     ec_stopQuiz(device);
     ec_disconnectDevice(device);
 

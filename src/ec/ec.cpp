@@ -659,6 +659,9 @@ void API_FUNC ec_setDeviceMode(ec_Device device, int deviceMode)
 
 int API_FUNC ec_connectDevice(ec_Device device, int minId, int maxId)
 {
+    ec_disconnectDevice(device);
+    ec_sleep(100);
+
 	Device *dev = (Device*)(device);
     unsigned char cmd[1024];
     switch (dev->deviceType)
@@ -695,8 +698,10 @@ int API_FUNC ec_connectDevice(ec_Device device, int minId, int maxId)
 
 void API_FUNC ec_disconnectDevice(ec_Device device)
 {
-	Device *dev = (Device*)(device);
     ec_stopQuiz(device);
+    ec_sleep(100);
+
+	Device *dev = (Device*)(device);
     unsigned char cmd[1024];
     switch (dev->deviceType)
     {
@@ -713,7 +718,6 @@ void API_FUNC ec_disconnectDevice(ec_Device device)
 int API_FUNC ec_getEvent(ec_Device device, ec_Event *event)
 {
     Device *dev = (Device*)(device);
-
     unsigned char data[1024];
     int length = sizeof(data);
     while (1)
@@ -740,6 +744,9 @@ int API_FUNC ec_getEvent(ec_Device device, ec_Event *event)
 
 int API_FUNC ec_startQuiz(ec_Device device, int quizType, int param1, int param2, int isNewQuiz)
 {
+    ec_stopQuiz(device);
+    ec_sleep(100);
+
     Device *dev = (Device*)(device);
     unsigned char cmd[1024];
     switch (dev->deviceType)
