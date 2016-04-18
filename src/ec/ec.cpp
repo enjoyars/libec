@@ -598,7 +598,7 @@ EC_API void API_FUNC ec_destroyDevice(ec_Device device)
     return;
 }
 
-static bool ec_cmd(ec_Device device, const unsigned char *cmd, int length, int timeout = 10)
+static bool ec_cmd(ec_Device device, const unsigned char *cmd, int length, int timeout = 0)
 {
 	Device *dev = (Device*)(device);
     unsigned char data[1024];
@@ -750,9 +750,6 @@ int API_FUNC ec_getEvent(ec_Device device, ec_Event *event)
 
 int API_FUNC ec_startQuiz(ec_Device device, int quizType, int param1, int param2, int isNewQuiz)
 {
-//    ec_stopQuiz(device);
-//    ec_sleep(100);
-
     Device *dev = (Device*)(device);
     unsigned char cmd[1024];
     switch (dev->deviceType)
