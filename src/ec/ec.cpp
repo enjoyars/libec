@@ -592,7 +592,7 @@ EC_API void API_FUNC ec_destroyDevice(ec_Device device)
     return;
 }
 
-static bool ec_cmd(ec_Device device, const unsigned char *cmd, int length, int timeout = 100)
+static bool ec_cmd(ec_Device device, const unsigned char *cmd, int length, int timeout = 0)
 {
 	Device *dev = (Device*)(device);
     unsigned char data[1024];
