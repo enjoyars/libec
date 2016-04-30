@@ -125,11 +125,11 @@ int GspHID::read(unsigned char *data, int length, int timeout)
 {
     int s = 0;
     double t = tictoc();
-    for (s = s + max(0, _read(data + s, length - s));
+    for (s += _read(data + s, length - s);
          (s < length) && (tictoc() - t > timeout);
-         s = s + max(0, _read(data + s, length - s)))
+         s += _read(data + s, length - s))
     {
-        tthread::this_thread::sleep_for(tthread::chrono::microseconds(1000));
+        tthread::this_thread::sleep_for(tthread::chrono::microseconds(10));
     }
     return s;
 }
@@ -138,11 +138,11 @@ int GspHID::write(const unsigned char *data, int length, int timeout)
 {
     int s = 0;
     double t = tictoc();
-    for (s = s + max(0, _write(data + s, length - s));
+    for (s += _write(data + s, length - s);
          (s < length) && (tictoc() - t > timeout);
-         s = s + max(0, _write(data + s, length - s)))
+         s += _write(data + s, length - s))
     {
-        tthread::this_thread::sleep_for(tthread::chrono::microseconds(1000));
+        tthread::this_thread::sleep_for(tthread::chrono::microseconds(10));
     }
     return s;
 }
