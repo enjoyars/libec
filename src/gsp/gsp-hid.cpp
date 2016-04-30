@@ -96,9 +96,9 @@ bool GspHID::open(const std::string path, int baud)
     buf[8] = 0x00; // Short Stop Bit
     hid_send_feature_report(_device, buf, 9); // Config UART
 
-    buf[0] = 0x43;
-    buf[1] = 0x03;
-    hid_send_feature_report(_device, buf, 2); // Purge FIFOs
+//    buf[0] = 0x43;
+//    buf[1] = 0x03;
+//    hid_send_feature_report(_device, buf, 2); // Purge FIFOs
 
     buf[0] = 0x41;
     buf[1] = 0x01;
@@ -125,16 +125,11 @@ int GspHID::read(unsigned char *data, int length, int timeout)
 {
     int s = 0;
     double t = tictoc();
-    for (s += max(0, _read((char *)data + s, length - s));
-         s < length;
-         s += max(0, _read((char *)data + s, length - s)))
+    for (s = s + max(0, _read(data + s, length - s));
+         (s < length) && (tictoc() - t > timeout);
+         s = s + max(0, _read(data + s, length - s)))
     {
-//        printf("#%d \n", s);
-        if (tictoc() - t > timeout)
-        {
-            break;
-        }
-//        tthread::this_thread::sleep_for(tthread::chrono::microseconds(1));
+        tthread::this_thread::sleep_for(tthread::chrono::microseconds(1000));
     }
     return s;
 }
@@ -143,15 +138,11 @@ int GspHID::write(const unsigned char *data, int length, int timeout)
 {
     int s = 0;
     double t = tictoc();
-    for (s += max(0, _write((char *)data + s, length - s));
-         s < length;
-         s += max(0, _write((char *)data + s, length - s)))
+    for (s = s + max(0, _write(data + s, length - s));
+         (s < length) && (tictoc() - t > timeout);
+         s = s + max(0, _write(data + s, length - s)))
     {
-        if (tictoc() - t > timeout)
-        {
-            break;
-        }
-//        tthread::this_thread::sleep_for(tthread::chrono::microseconds(1));
+        tthread::this_thread::sleep_for(tthread::chrono::microseconds(1000));
     }
     return s;
 }
@@ -165,8 +156,9 @@ void GspHID::flush()
     return;
 }
 
-int GspHID::_read(void *data, int length)
+int GspHID::_read(unsigned char *data, int length)
 {
+    memset(data, 0, length);
     length = min(length, 63);
 
     // buffer size must be 64.
@@ -175,15 +167,15 @@ int GspHID::_read(void *data, int length)
     buf[0] = length;
 
     // buffer size must be 64. buf[0] changed after reading.
-    if(hid_read(_device, buf, 64) <= 1)
+    if(hid_read(_device, buf, length + 1) > 0)
     {
-        return 0;
+        memcpy(data, buf + 1, buf[0]);
+        return buf[0];
     }
-    memcpy(data, buf + 1, buf[0]);
-    return buf[0];
+    return 0;
 }
 
-int GspHID::_write(void *data, int length)
+int GspHID::_write(const unsigned char *data, int length)
 {
     length = min(length, 63);
 
@@ -194,7 +186,7 @@ int GspHID::_write(void *data, int length)
     memcpy(buf + 1, data, length);
 
     // buffer size must be 64. buf[0] changed after writing.
-    if (hid_write(_device, buf, 64) == 64)
+    if (hid_write(_device, buf, length + 1) > 0)
     {
         return buf[0];
     }

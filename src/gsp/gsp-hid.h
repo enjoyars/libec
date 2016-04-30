@@ -22,8 +22,8 @@ public:
     virtual void flush();
 
 private:
-    int _read(void *data, int length);
-    int _write(void *data, int length);
+    int _read(unsigned char *data, int length);
+    int _write(const unsigned char  *data, int length);
 
 private:
     hid_device *_device;
