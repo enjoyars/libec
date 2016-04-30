@@ -728,7 +728,7 @@ int API_FUNC ec_getEvent(ec_Device device, ec_Event *event)
     int length = sizeof(data);
     while (1)
     {
-        length = ec_readPort(dev->port, data, sizeof(data));
+        length = ec_readPort(dev->port, data, sizeof(data), 1);
         if (length > 0)
         {
             dev->dataRecvEvent(data, length);
